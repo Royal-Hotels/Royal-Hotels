@@ -26,7 +26,7 @@ const client = new Client(url);
 
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
-  res.status(200).send("Welcome to the home page!");
+  res.status(200).send("Welcome To Our World!");
 });
 
 // Middleware to handle page not found (404) errors
