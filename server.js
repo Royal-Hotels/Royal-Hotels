@@ -9,7 +9,8 @@ const axios = require("axios");
 const app = express();
 
 // Server PORT
-const PORT = process.env.PORT;
+// const PORT = process.env.PORT;
+const PORT= 3000;
 
 // Enable CORS middleware
 app.use(cors());
@@ -19,10 +20,61 @@ app.use(express.json());
 
 // Database config
 const { Client } = require("pg");
-const url = process.env.DATABASE_URL;
+// const url = process.env.DATABASE_URL;
+const url = `postgres://balqees:0000@localhost:5432/royal`;
+
 const client = new Client(url);
 
 // Define your other routes here...
+
+// Route to delete a room reservation based on user ID and reservation ID
+app.delete("/reservations/:userId/:reservationId", async (req, res) => {
+  const { userId, reservationId } = req.params;
+
+  try {
+    // Check if the user exists
+    const userQuery = "SELECT * FROM Users WHERE user_id = $1";
+    const userResult = await client.query(userQuery, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if the reservation exists
+    const reservationQuery = "SELECT * FROM Reservation WHERE reservation_id = $1";
+    const reservationResult = await client.query(reservationQuery, [reservationId]);
+
+    if (reservationResult.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    const reservation = reservationResult.rows[0];
+
+    // Check if the reservation is within the allowed cancellation timeline
+    const currentDate = new Date();
+    const checkInDate = new Date(reservation.check_in_date);
+    
+    if (currentDate >= checkInDate) {
+      return res.status(400).json({ error: "Cannot cancel reservation within the timeline" });
+    }
+
+    // Delete the reservation
+    const deleteReservationQuery = "DELETE FROM Reservation WHERE reservation_id = $1 RETURNING *";
+    const deletedReservation = await client.query(deleteReservationQuery, [reservationId]);
+
+    res.status(200).json({ message: "Reservation deleted successfully", deletedReservation: deletedReservation.rows[0] });
+  } catch (error) {
+    console.error("Error deleting reservation:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+
+
+
 
 // Route for adding a new branch
 app.post("/branches", async (req, res) => {

@@ -1,10 +1,10 @@
-CREATE TABLE Branch (
+CREATE TABLE branch (
     branch_id SERIAL PRIMARY KEY,
     branch_name VARCHAR(100),
     location VARCHAR(255)
 );
 
-CREATE TABLE Room (
+CREATE TABLE room (
     room_id SERIAL PRIMARY KEY,
     branch_id INT NOT NULL,
     room_number VARCHAR(20) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE Room (
     FOREIGN KEY (branch_id) REFERENCES Branch(branch_id) ON DELETE CASCADE
 );
 
-CREATE TABLE Users (
+CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
     phone INT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE Users (
     
 );
 
-CREATE TABLE Reservation (
+CREATE TABLE reservation (
     reservation_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     room_id INT NOT NULL,
