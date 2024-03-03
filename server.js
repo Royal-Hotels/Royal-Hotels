@@ -149,6 +149,63 @@ app.get("/reservations", async (req, res) => {
   }
 });
 
+// Route for updating check-in and check-out dates of a reservation
+app.put("/reservations/:id", async (req, res, next) => {
+  const { id } = req.params;
+  const { check_in_date, check_out_date } = req.body;
+
+  try {
+    // Check if the current date is before the existing check-in date
+    const existingReservation = await client.query(
+      "SELECT check_in_date FROM Reservation WHERE reservation_id = $1",
+      [id]
+    );
+
+    if (existingReservation.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    const existingCheckIn = new Date(existingReservation.rows[0].check_in_date);
+    const currentDate = new Date();
+
+    if (currentDate > existingCheckIn) {
+      return res.status(400).json({ error: "Cannot change check-in date because it has already passed" });
+    }
+
+    // Update the reservation with the new check-in and check-out dates
+    const result = await client.query(
+      "UPDATE Reservation SET check_in_date = $1, check_out_date = $2 WHERE reservation_id = $3 RETURNING *",
+      [check_in_date, check_out_date, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    res.status(200).json({ message: "Reservation updated successfully", reservation: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Route for get all reservations for user
+app.get("/users/:userId", async (req, res, next) => {
+  const { userId } = req.params;
+
+  try {
+    // Query the database to retrieve reservations for the user
+    const result = await client.query(
+      "SELECT * FROM Reservation WHERE user_id = $1",
+      [userId]
+    );
+
+    // Send the retrieved reservations as a response
+    res.status(200).json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
   res.status(200).send("Welcome To Our World!");
