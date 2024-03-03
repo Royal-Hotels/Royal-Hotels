@@ -274,7 +274,7 @@ app.put("/reservations/:id", async (req, res, next) => {
     next(error);
   }
 });
-
+// --------------- DELETE ---------------
 // Route to delete a room reservation based on user ID and reservation ID
 app.delete("/reservations/:userId/:reservationId", async (req, res) => {
   const { userId, reservationId } = req.params;
