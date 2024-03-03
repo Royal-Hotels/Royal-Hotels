@@ -51,7 +51,7 @@ app.delete("/reservations/:userId/:reservationId", async (req, res) => {
     // Check if the reservation is within the allowed cancellation timeline
     const currentDate = new Date();
     const checkInDate = new Date(reservation.check_in_date);
-    
+
     if (currentDate >= checkInDate) {
       return res.status(400).json({ error: "Cannot cancel reservation within the timeline" });
     }
@@ -141,9 +141,118 @@ app.get("/reservations", async (req, res) => {
   }
 });
 
+// Route to create new reservations
+app.post("/reservations/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    const { room_id, check_in_date, check_out_date } = req.body;
+
+
+    const reservationOverlapQuery = `
+      SELECT * FROM Reservation
+      WHERE room_id = $1
+      AND (
+        (check_in_date <= $2 AND check_out_date >= $2)
+        OR (check_in_date <= $3 AND check_out_date >= $3)
+        OR (check_in_date >= $2 AND check_out_date <= $3)
+      )
+      AND is_active = true;
+    `;
+
+    const overlapResult = await client.query(reservationOverlapQuery, [
+      room_id,
+      check_in_date,
+      check_out_date,
+    ]);
+
+    if (overlapResult.rows.length > 0) {
+      const returnDate = overlapResult.rows[0].check_out_date;
+      return res.status(400).json({ error: `This room is reserved. Please choose another date. The room will be available after ${returnDate}.` });
+    }
+
+    const resSQL = "INSERT INTO Reservation ( user_id, room_id, check_in_date, check_out_date ) VALUES ($1,$2,$3,$4) RETURNING *;";
+    const resValue = [user_id, room_id, check_in_date, check_out_date];
+
+    const result = await client.query(resSQL, resValue);
+    console.log(result.rows)
+    res.status(201).json(result.rows[0])
+
+  } catch (error) {
+    console.error("Error Creating reservations:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+})
+
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
   res.status(200).send("Welcome To Our World!");
+});
+
+// Route for updating check-in and check-out dates of a reservation
+app.put("/reservations/:id", async (req, res, next) => {
+  const { id } = req.params;
+  const { check_in_date, check_out_date } = req.body;
+
+  try {
+    // Check if the current date is before the existing check-in date
+    const existingReservation = await client.query(
+      "SELECT check_in_date FROM Reservation WHERE reservation_id = $1",
+      [id]
+    );
+
+    if (existingReservation.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    const existingCheckIn = new Date(existingReservation.rows[0].check_in_date);
+    const currentDate = new Date();
+
+    if (currentDate > existingCheckIn) {
+      return res.status(400).json({ error: "Cannot change check-in date because it has already passed" });
+    }
+
+    // Update the reservation with the new check-in and check-out dates
+    const result = await client.query(
+      "UPDATE Reservation SET check_in_date = $1, check_out_date = $2 WHERE reservation_id = $3 RETURNING *",
+      [check_in_date, check_out_date, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    res.status(200).json({ message: "Reservation updated successfully", reservation: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Route for get all reservations for user
+app.get("/users/:userId", async (req, res, next) => {
+  const { userId } = req.params;
+
+  try {
+    // Query the database to retrieve reservations for the user
+    const result = await client.query(
+      "SELECT * FROM Reservation WHERE user_id = $1",
+      [userId]
+    );
+
+    // Send the retrieved reservations as a response
+    res.status(200).json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Route handler for the root route "/"
+app.get("/", (req, res) => {
+  res.status(200).send("Welcome To Our World!");
+});
+
+// Middleware to handle page not found (404) errors
+app.use((req, res, next) => {
+  res.status(404).send("Page not found");
 });
 
 // Middleware to handle page not found (404) errors
