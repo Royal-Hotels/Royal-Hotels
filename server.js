@@ -97,6 +97,50 @@ app.get("/reservations", async (req, res) => {
   }
 });
 
+// Route to create new reservations
+app.post("/reservations/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params; 
+    const { room_id, check_in_date, check_out_date } = req.body;
+
+
+    const reservationOverlapQuery = `
+      SELECT * FROM reservation
+      WHERE room_id = $1
+      AND (
+        (check_in_date <= $2 AND check_out_date >= $2)
+        OR (check_in_date <= $3 AND check_out_date >= $3)
+        OR (check_in_date >= $2 AND check_out_date <= $3)
+      )
+      AND is_active = true;
+    `;
+
+    const overlapResult = await client.query(reservationOverlapQuery, [
+      room_id,
+      check_in_date,
+      check_out_date,
+    ]);
+
+    if (overlapResult.rows.length > 0) {
+      const returnDate = overlapResult.rows[0].check_out_date;
+      return res.status(400).json({ error: `This room is reserved. Please choose another date. The room will be available after ${returnDate}.` });
+    }
+
+    const resSQL = "INSERT INTO reservation ( user_id, room_id, check_in_date, check_out_date ) VALUES ($1,$2,$3,$4) RETURNING *;";
+    const resValue = [user_id, room_id, check_in_date, check_out_date];
+
+    const result = await client.query(resSQL, resValue);
+    console.log(result.rows)
+    res.status(201).json(result.rows[0])
+
+  } catch (error) {
+    console.error("Error Creating reservations:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+})
+
+
+
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
   res.status(200).send("Welcome To Our World!");
