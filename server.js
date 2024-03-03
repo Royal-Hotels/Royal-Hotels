@@ -20,9 +20,53 @@ app.use(express.json());
 // Database config
 const { Client } = require("pg");
 const url = process.env.DATABASE_URL;
+
 const client = new Client(url);
 
 // Define your other routes here...
+
+// Route to delete a room reservation based on user ID and reservation ID
+app.delete("/reservations/:userId/:reservationId", async (req, res) => {
+  const { userId, reservationId } = req.params;
+
+  try {
+    // Check if the user exists
+    const userQuery = "SELECT * FROM Users WHERE user_id = $1";
+    const userResult = await client.query(userQuery, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if the reservation exists
+    const reservationQuery = "SELECT * FROM Reservation WHERE reservation_id = $1";
+    const reservationResult = await client.query(reservationQuery, [reservationId]);
+
+    if (reservationResult.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    const reservation = reservationResult.rows[0];
+
+    // Check if the reservation is within the allowed cancellation timeline
+    const currentDate = new Date();
+    const checkInDate = new Date(reservation.check_in_date);
+    
+    if (currentDate >= checkInDate) {
+      return res.status(400).json({ error: "Cannot cancel reservation within the timeline" });
+    }
+
+    // Delete the reservation
+    const deleteReservationQuery = "DELETE FROM Reservation WHERE reservation_id = $1 RETURNING *";
+    const deletedReservation = await client.query(deleteReservationQuery, [reservationId]);
+
+    res.status(200).json({ message: "Reservation deleted successfully", deletedReservation: deletedReservation.rows[0] });
+  } catch (error) {
+    console.error("Error deleting reservation:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 // Route for adding a new branch
 app.post("/branches", async (req, res) => {
@@ -96,50 +140,6 @@ app.get("/reservations", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// Route to create new reservations
-app.post("/reservations/:user_id", async (req, res) => {
-  try {
-    const { user_id } = req.params; 
-    const { room_id, check_in_date, check_out_date } = req.body;
-
-
-    const reservationOverlapQuery = `
-      SELECT * FROM reservation
-      WHERE room_id = $1
-      AND (
-        (check_in_date <= $2 AND check_out_date >= $2)
-        OR (check_in_date <= $3 AND check_out_date >= $3)
-        OR (check_in_date >= $2 AND check_out_date <= $3)
-      )
-      AND is_active = true;
-    `;
-
-    const overlapResult = await client.query(reservationOverlapQuery, [
-      room_id,
-      check_in_date,
-      check_out_date,
-    ]);
-
-    if (overlapResult.rows.length > 0) {
-      const returnDate = overlapResult.rows[0].check_out_date;
-      return res.status(400).json({ error: `This room is reserved. Please choose another date. The room will be available after ${returnDate}.` });
-    }
-
-    const resSQL = "INSERT INTO reservation ( user_id, room_id, check_in_date, check_out_date ) VALUES ($1,$2,$3,$4) RETURNING *;";
-    const resValue = [user_id, room_id, check_in_date, check_out_date];
-
-    const result = await client.query(resSQL, resValue);
-    console.log(result.rows)
-    res.status(201).json(result.rows[0])
-
-  } catch (error) {
-    console.error("Error Creating reservations:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-})
-
-
 
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
