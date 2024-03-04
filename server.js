@@ -20,7 +20,6 @@ app.use(express.json());
 // Database config
 const { Client } = require("pg");
 const url = process.env.DATABASE_URL;
-
 const client = new Client(url);
 
 // Define your other routes here...
@@ -28,6 +27,29 @@ const client = new Client(url);
 // Route handler for the root route "/"
 app.get("/", (req, res) => {
   res.status(200).send("Hello World!");
+});
+app.get("/converter", async (req, res) => {
+  const { from, to, amount } = req.body;
+  const options = {
+    method: "GET",
+    url: "https://currency-converter-pro1.p.rapidapi.com/convert",
+    params: {
+      from: from,
+      to: to,
+      amount: amount,
+    },
+    headers: {
+      "X-RapidAPI-Key": process.env.API_KEY,
+      "X-RapidAPI-Host": "currency-converter-pro1.p.rapidapi.com",
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    res.status(200).json(response.data.result);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 // Route to get all avalible rooms
 app.get("/avalibale-rooms", (req, res) => {
