@@ -19,6 +19,7 @@ app.use(express.json());
 
 // Database config
 const { Client } = require("pg");
+const e = require("express");
 const url = process.env.DATABASE_URL;
 const client = new Client(url);
 
@@ -28,6 +29,17 @@ const client = new Client(url);
 app.get("/", (req, res) => {
   res.status(200).send("Hello World!");
 });
+// Route Get all branchs
+app.get("/allBranchs", async (req, res)=>{
+  const query = "SELECT * FROM branch";
+  try{
+    const result = await client.query(query);
+    res.status(200).json(result.rows);
+  }catch (error){
+    res.status(500).json({ error: error.message });
+  }
+})
+// API Route for converting $
 app.get("/converter", async (req, res) => {
   const { from, to, amount } = req.body;
   const options = {
@@ -112,7 +124,7 @@ app.get("/users/:userId", async (req, res, next) => {
     // Send the retrieved reservations as a response
     res.status(200).json(result.rows);
   } catch (error) {
-    next(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 // Route to get all active reservations
