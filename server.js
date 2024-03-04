@@ -9,7 +9,8 @@ const axios = require("axios");
 const app = express();
 
 // Server PORT
-const PORT = process.env.PORT;
+// const PORT = process.env.PORT;
+const PORT = 3000;
 
 // Enable CORS middleware
 app.use(cors());
@@ -20,6 +21,7 @@ app.use(express.json());
 // Database config
 const { Client } = require("pg");
 const e = require("express");
+
 const url = process.env.DATABASE_URL;
 const client = new Client(url);
 
@@ -153,6 +155,12 @@ app.post("/user", (req, res) => {
   // Check whether email already exists
   const check = `SELECT * FROM users WHERE email = $1`;
   const checkedValue = [req.body.email];
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/; // Regex for Gmail address
+
+  if (!gmailRegex.test(req.body.email)) {
+    return res.status(400).json({ error: "Invalid Gmail address" });
+  }
+
   client.query(check, checkedValue).then((result) => {
     if (result.rows.length > 0) {
       return res.status(400).json({ error: "User already exists" });
