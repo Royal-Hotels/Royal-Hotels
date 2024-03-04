@@ -21,9 +21,8 @@ app.use(express.json());
 // Database config
 const { Client } = require("pg");
 const e = require("express");
-// const url = process.env.DATABASE_URL;
-const url = `postgres://balqees:0000@localhost:5432/royal`;
 
+const url = process.env.DATABASE_URL;
 const client = new Client(url);
 
 // Define your other routes here...
