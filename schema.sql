@@ -1,8 +1,8 @@
 
 CREATE TABLE branch (
     branch_id SERIAL PRIMARY KEY,
-    branch_name VARCHAR(100),
-    location VARCHAR(255)
+    branch_name VARCHAR(100) NOT NULL,
+    location VARCHAR(255) NOT NULL
 );
 
 
