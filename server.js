@@ -32,12 +32,12 @@ app.get("/", (req, res) => {
   res.status(200).send("Hello World!");
 });
 // Route Get all branchs
-app.get("/allBranchs", async (req, res)=>{
+app.get("/allBranchs", async (req, res) => {
   const query = "SELECT * FROM branch";
-  try{
+  try {
     const result = await client.query(query);
     res.status(200).json(result.rows);
-  }catch (error){
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 })
@@ -366,6 +366,28 @@ app.delete("/reservations/:userId/:reservationId", async (req, res) => {
   } catch (error) {
     console.error("Error deleting reservation:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+// route for user login
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const query = "SELECT * FROM users WHERE username = $1 AND password_hash = $2";
+    const result = await client.query(query, [username, password]);
+
+    if (result.rows.length > 0) {
+      res.status(200).json({ success: true, message: "Login successful" });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+  } catch (error) {
+    console.error("Error during login:", error);
+    console.error("Specific error message:", error.message);
+  
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
